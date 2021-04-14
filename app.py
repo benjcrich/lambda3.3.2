@@ -1,8 +1,8 @@
 from flask import Flask, render_template, request
 import json
-from data_model import DB, User, Tweet
-from twitter import upsert_user
+from data_model import DB
 from obtain_user import get_user_and_tweets
+from ml import predict_most_likely_author
 
 
 def create_app():
@@ -11,26 +11,40 @@ def create_app():
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///db.sqlite3'
     DB.init_app(app)
 
+    # Landing page for our web app
     @app.route('/')
     def landing():
+        return render_template('landing.html')
+
+    # Contains the input for a user
+    @app.route('/user')
+    def user():
+        return render_template('user.html')
+
+    # Adds the user and displays the success message
+    @app.route('/add_user', methods=['GET'])
+    def add_user():
+        twitter_handle = request.args['twitter']
+        get_user_and_tweets(twitter_handle)
+        return 'User added successfully'
+
+    # Predicts which user most likely tweeted the string given.
+    @app.route('/predict_author', methods=['GET'])
+    def predict_author():
+        user1 = 'cher'
+        user2 = 'elonmusk'
+        tweet_to_classify = request.args['tweet_to_classify']
+        return predict_most_likely_author((tweet_to_classify, [user1, user2]))
+
+    @app.route('/reset')
+    def reset():
         DB.drop_all()
         DB.create_all()
-        DB.session.commit()
-        with open('templates/landing.json') as f:
-            args = json.load(f)
-        return render_template('base.html', **args)
+        return 'Database Reset'
 
-    # @app.route('/add_user', methods=['GET'])
-    # def add_user():
-    #     twitter_handle = request.args['twitter_handle']
-    #     upsert_user(twitter_handle)
-    #     return 'Insert Successful'
-
-    @app.route('/user', methods=['GET'])
-    def add_user():
-        twitter_handle = request.args['twitter_handle']
-        get_user_and_tweets(twitter_handle)
-        return 'User added'
+    @app.route('/test')
+    def test():
+        return 'Test Successful'
 
     return app
 
